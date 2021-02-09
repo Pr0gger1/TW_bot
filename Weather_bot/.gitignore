@@ -1,0 +1,5 @@
+#Ignore cache and logs
+*.py[cod]
+__pycache__/
+*.code-workspace
+test.py
