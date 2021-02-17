@@ -1,6 +1,6 @@
 #Импорт необходимых переменных для работы с базой данных
 from configure import TG_token, weather_api
-from add_info import take_user, unsubscribe ,save_searh_users, db
+from add_info import db, unsubscribe, search_users, save_users#take_user_time, unsubscribe , search_users, save_users, db
 #Импорт библиотеки и ее функций для работы с ботом
 import telebot
 from telebot.types import Message
@@ -11,30 +11,33 @@ from pyowm.utils.config import get_default_config
 #Другие необходимые библиотеки
 import datetime
 import schedule
-from time import time
+import time
 
 class Weather_bot:
     def __init__(self, bot):
-        super().__init__()
         self.bot = bot
         self.func_commands()
         self.func_weather()
+        self.forecast_commands()
+        #self.send_forecast()
+        #self.daily_forecast()
     
     def func_commands(self):
-        @self.bot.message_handler(commands=['start', 'info'])
-        def welcome(message):
+        @self.bot.message_handler(commands=['start', 'info'], content_types = ['text'])
+        def main(message):
             if message.text == '/start':
+                self.daily_forecast()
                 self.user_id = message.from_user.id
+                self.message_chat_id = message.chat.id
 
-                inline_mailing_forecast = types.InlineKeyboardMarkup(row_width=2)
-                inline_button_sub = types.InlineKeyboardButton(text='Подписаться на рассылку погоды', callback_data='subscribeWeather')
-                inline_button_unsub = types.InlineKeyboardButton(text = 'Отписаться от рассылки погоды', callback_data = 'unsubscribeWeather')
-
-                inline_mailing_forecast.add(inline_button_sub, inline_button_unsub)
+                sub_fc_key = types.ReplyKeyboardMarkup(resize_keyboard = True)
+                take_sub_fc_button = types.KeyboardButton(text='Подписаться на рассылку погоды')
+                take_unsub_fc_button = types.KeyboardButton(text='Отписаться от рассылки погоды')
+                sub_fc_key.row(take_sub_fc_button, take_unsub_fc_button)
                 
                 self.bot.send_message(
                     message.chat.id, f'Привет, {message.from_user.first_name}, я бот, призванный облегчить наблюдение за погодой😉.'
-                    + '\nНапиши мне свой город и я расскажу, всё что знаю о нём.\nВведите команду /info, если что-то непонятно))', reply_markup = inline_mailing_forecast)
+                    + '\nНапиши мне свой город и я расскажу, всё что знаю о нём.\nВведите команду /info, если что-то непонятно))', reply_markup = sub_fc_key)
                 self.callback()
                 
 
@@ -46,7 +49,25 @@ class Weather_bot:
 
                 self.bot.send_message(message.chat.id, 'Что вы хотите узнать обо мне?', reply_markup=self.inline_info_key)
                 self.callback()
-                
+
+            
+
+    def forecast_commands(self):
+        @self.bot.message_handler(content_types = ['text'])
+        def comm(message):
+            if message.text == 'Подписаться на рассылку погоды':
+                check_subscribe = search_users(db, user_id = self.user_id)
+                if check_subscribe == False:
+
+                    city_input = self.bot.send_message(message.chat.id, 'Город?')
+                    self.bot.register_next_step_handler(city_input, self.set_city)
+
+
+                elif check_subscribe == True:
+                    self.bot.send_message(message.chat.id, 'Вы уже подписаны на рассылку. Если хотите изменить данные, отправьте "cd".')
+
+            elif message.text == 'Отписаться от рассылки погоды':
+                self.bot.send_message(message.chat.id, f'{unsubscribe(db, user_id = self.user_id)}')
                 
     def callback(self):
         @self.bot.callback_query_handler(func = lambda call: True)
@@ -60,49 +81,49 @@ class Weather_bot:
             elif call.data == 'howWeather':
                 self.bot.send_message(call.message.chat.id, 'Узнать погоду можно, вызвав команду /weather')
 
-            elif call.data == 'subscribeWeather':
 
-                city_input = self.bot.send_message(self.user_id, 'Для какого города вы хотите получать рассылку погоды?')
-                self.bot.register_next_step_handler(city_input, self.set_city)
-            
-            elif call.data == 'unsubscribeWeather':
-                unsubscribe(db, user_id = self.user_id)
-                self.bot.send_message(call.message.chat.id, 'Вы успешно отписались от рассылки!')
-
-    
     def set_city(self, message):
         self.city = message.text
-
-        time_input = self.bot.send_message(message.chat.id, 'На какое время вы хотите настроить рассылку? (ч:м)')
+        
+        time_input = self.bot.send_message(message.chat.id, 'Время отправки прогноза? (чч:мм)')
         self.bot.register_next_step_handler(time_input, self.set_time)
 
     def set_time(self, message):
         self.time = message.text
+        self.save_sub()
 
-        save_searh_users(db, user_id = self.user_id, time = self.time, city = self.city)
-        self.bot.send_message(message.chat.id, 'Вы успешно подписались на рассылку!😎')
+    def save_sub(self):
+
+        save_users(db, user_id = self.user_id, time = self.time, city = self.city)
+        self.bot.send_message(self.user_id, 'Вы успешно подписались на рассылку!😎')
         self.daily_forecast()
 
 
     def daily_forecast(self):
-        def send_forecast():
-            self.bot.send_message(self.user_id, 'Hi')
+        '''@self.bot.message_handler(content_types = ['text'])
+        def send(message):
+            self.bot.send_message(message.chat.id, 'Hi')'''
+        self.bot.send_message(self.user_id, 'Hi')
+        self.bot.send_message(self.user_id, f'{search_users(db, user_id = self.user_id)}')
 
-        schedule.every().day.at(take_user(db, self.user_id)).do(send_forecast)
+    def send_forecast(self):
+        #if search_users(db, user_id = self.user_id) == True:
+        schedule.every(2).seconds.do(self.daily_forecast)#(take_user_time(db, user_id = self.id))
 
         while True:
             schedule.run_pending()
             time.sleep(1)
-        
+        #else:
+            #pass
     
+
     def func_weather(self):
         @self.bot.message_handler(commands=['weather'] ,content_types=['text'])
         def input_data(message):
-                
                 user_city = self.bot.send_message(message.chat.id, 'Напишите интересующий вас город...')
                 self.bot.register_next_step_handler(user_city, checking_weather)
 
-        def checking_weather(message):
+        def checking_weather(self, message):
             self.city = message.text
             try:
                 config_dict = get_default_config()
@@ -110,7 +131,7 @@ class Weather_bot:
                 owm = pyowm.OWM(weather_api, config_dict)
                                 
                 mgr = owm.weather_manager()
-                observation = owm.weather_manager().weather_at_place(self.city)
+                observation = mgr.weather_at_place(self.city)
                 w = observation.weather
 
                 #погодные характеристики
@@ -125,7 +146,7 @@ class Weather_bot:
 
                 self.bot.send_message(
 
-                message.chat.id,
+                self.message_chat_id,
                 f'🌤В городе {self.city} сейчас {weather_now}'
                 + f'\n🌡Температура воздуха: {temp}'
                 + f'\n🌡[max]Максимальная температура воздуха: {max_temp}'
@@ -137,9 +158,10 @@ class Weather_bot:
                 )
 
             except:
-                self.bot.send_message(message.chat.id, f'Извините, город {self.city} отсутствует в моей базе данных'
+                self.bot.send_message(self.message_chat_id, f'Извините, город {self.city} отсутствует в моей базе данных'
                 + '\nили вы неправильно ввели название города☹'
                 )
+
 
 if __name__ == '__main__':
 

@@ -4,3 +4,4 @@ __pycache__/
 *.code-workspace
 test.py
 .vscode
+tg_bot
