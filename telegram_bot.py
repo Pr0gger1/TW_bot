@@ -78,7 +78,8 @@ class Weather_bot:
 
                 elif check_subscribe == True:
                     self.bot.send_message(message.chat.id, 'Вы уже подписаны на рассылку. Если хотите изменить данные, отправьте "cd".')
-
+                    #if message.text == 'cd':
+                    
             elif message.text == 'Отписаться от рассылки погоды':
                 self.bot.send_message(message.chat.id, remove_users(db, user_id = self.user_id))
 

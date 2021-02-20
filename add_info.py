@@ -17,8 +17,10 @@ def save_users(db, user_id, time, city):
     }
         )
 
+def modify_data(db, user_id, time, city):
+    pass
 
-def unsubscribe(db, user_id):
+def remove_users(db, user_id):
     user = db['users'].find_one({'user_id': user_id})
 
     if not user:
