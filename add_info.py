@@ -34,4 +34,4 @@ def take_user_time(db, user_id):
     return db['users'].find_one({'user_id': user_id})['time']
 
 def take_user_city(db, user_id):
-    db['users'].find_one({'user_id': user_id})['city']
+    return db['users'].find_one({'user_id': user_id})['city']
