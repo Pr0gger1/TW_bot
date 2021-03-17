@@ -1,3 +1,3 @@
-=/Description of my project\=
+=/ Description of my project
 
-== Telegram bot, which search information about weather ==
+Telegram bot, which search information about weather \=
